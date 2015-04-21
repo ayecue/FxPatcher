@@ -1,6 +1,10 @@
 <?php
 
-class FxPatcher_Controller_Plugin_Injector extends Zend_Controller_Plugin_Abstract {
+namespace FxPatcher\Controller\Plugin;
+
+use Pimcore\Tool as PimcoreTool;
+
+class Injector extends \Zend_Controller_Plugin_Abstract {
     const DOM_VERSION = "1.0";
     const DOM_ENCODING = "utf-8";
 
@@ -16,7 +20,7 @@ class FxPatcher_Controller_Plugin_Injector extends Zend_Controller_Plugin_Abstra
     }
 
     public function initDOM(){
-        $this->setDOM(new DOMDocument(self::DOM_VERSION,self::DOM_ENCODING));
+        $this->setDOM(new \DOMDocument(self::DOM_VERSION,self::DOM_ENCODING));
     }
 
     public function getJavascriptPath(){
@@ -30,7 +34,7 @@ class FxPatcher_Controller_Plugin_Injector extends Zend_Controller_Plugin_Abstra
         );
     }
 
-    public function addJavascript(simple_html_dom $html,$src){
+    public function addJavascript(\simple_html_dom $html,$src){
         $found = $html->find("head");
 
         if (isset($found) && !empty($found)) {
@@ -48,7 +52,7 @@ class FxPatcher_Controller_Plugin_Injector extends Zend_Controller_Plugin_Abstra
     }
 
     public function dispatchLoopShutdown() {
-        if(!Pimcore_Tool::isHtmlResponse($this->getResponse())) {
+        if(!PimcoreTool::isHtmlResponse($this->getResponse())) {
             return;
         }
 

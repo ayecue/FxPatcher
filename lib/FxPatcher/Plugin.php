@@ -1,6 +1,11 @@
 <?php
 
-class FxPatcher_Plugin extends Pimcore_API_Plugin_Abstract implements Pimcore_API_Plugin_Interface {
+namespace FxPatcher;
+
+use Pimcore\API\Plugin as PluginLib;
+use FxPatcher\Controller\Plugin\Injector as FxPatcherInjector;
+
+class Plugin extends PluginLib\AbstractPlugin implements PluginLib\PluginInterface {
 	public static function install(){
 		return "Are you sure Plugin successfully installed.";
 	}
@@ -14,16 +19,16 @@ class FxPatcher_Plugin extends Pimcore_API_Plugin_Abstract implements Pimcore_AP
 	}
 
 	public static function getTranslationFile($language) {
-        if(file_exists(PIMCORE_PLUGINS_PATH . "/FXImproter/texts/" . $language . ".csv")){
-            return "/FXImproter/texts/" . $language . ".csv";
+        if(file_exists(PIMCORE_PLUGINS_PATH . "/FxPatcher/texts/" . $language . ".csv")){
+            return "/FxPatcher/texts/" . $language . ".csv";
         }
         
-        return "/FXImproter/texts/en.csv";
+        return "/FxPatcher/texts/en.csv";
     }
 
     public function preDispatch() {
-		$injector = new FxPatcher_Controller_Plugin_Injector();
-		$instance = Zend_Controller_Front::getInstance();
+		$injector = new FxPatcherInjector();
+		$instance = \Zend_Controller_Front::getInstance();
 		$instance->registerPlugin($injector);	
 	}
 }
