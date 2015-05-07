@@ -3,52 +3,63 @@
 namespace FxPatcher\Controller\Plugin;
 
 use Pimcore\Tool as PimcoreTool;
+use FxPatcher\Script;
+use FxPatcher\Resolver;
 
 class Injector extends \Zend_Controller_Plugin_Abstract {
-    const DOM_VERSION = "1.0";
-    const DOM_ENCODING = "utf-8";
+    const PATCHER_SCRIPT = "/plugins/FxPatcher/static/js/patcher.js";
 
-    private $DOM = NULL;
+    private $script;
+    private $resolver;
+    private $configuration;
 
-    public function setDOM($handle){
-        $this->DOM = $handle;
-        return $this;
+    function __construct($configuration) {
+        $this->configuration = $configuration;
+        $this->script = new Script();
+        $this->resolver = new Resolver();
+        $this->resolver->add("/website/" . $configuration->fxPatcherPath);
+        include_once("simple_html_dom.php");
     }
 
-    public function getDOM(){
-        return $this->DOM;
-    }
+    public function getState(){
+        $resolveState = -1;
+        $request = $this->getRequest();
 
-    public function initDOM(){
-        $this->setDOM(new \DOMDocument(self::DOM_VERSION,self::DOM_ENCODING));
-    }
-
-    public function getJavascriptPath(){
-        return "/plugins/FxPatcher/static/js/";
-    }
-
-    public function getPatcher(){
-        return array(
-            $this->getJavascriptPath() . "patcher.js",
-            $this->getJavascriptPath() . "document/tags/areablock/patch.js"
-        );
-    }
-
-    public function addJavascript(\simple_html_dom $html,$src){
-        $found = $html->find("head");
-
-        if (isset($found) && !empty($found)) {
-            foreach ($found as $head) {
-                $this->initDOM();
-                $scriptElement = $this->getDOM()->createElement("script");
-                $scriptElement->setAttribute("type","text/javascript");
-                $scriptElement->setAttribute("src",$src);
-                $this->getDOM()->appendChild($scriptElement);
-                $head->innertext = $head->innertext . $this->getDOM()->saveHTML();
-
-                return TRUE;
-            }
+        if (isset($_COOKIE["pimcore_admin_sid"])) {
+            $resolveState = Resolver::STATE_ADMIN;
         }
+
+        if ($request->getParam('pimcore_editmode') && $request->getParam('module') == 'website') {
+            $resolveState = Resolver::STATE_DOCUMENT;
+        }
+
+        return $resolveState;
+    }
+
+    public function inject($html,$path,$state){
+        if ($state === Resolver::STATE_ADMIN) {
+            $this->script->addJavascript($html,$path,"body");
+        } else {
+            $this->script->addJavascript($html,$path);
+        }
+    }
+
+    public function run($state){
+        $body = $this->getResponse()->getBody();
+        $html = str_get_html($body);
+        $patcher = $this->resolver->resolve($state);
+        $this->inject($html,self::PATCHER_SCRIPT,$state);
+
+        foreach ($patcher as $path) {
+            $this->inject($html,$path,$state);
+        }
+
+        $body = $html->save();
+
+        $html->clear();
+        unset($html);
+
+        $this->getResponse()->setBody($body);
     }
 
     public function dispatchLoopShutdown() {
@@ -56,24 +67,27 @@ class Injector extends \Zend_Controller_Plugin_Abstract {
             return;
         }
 
-        $request = $this->getRequest();
-        
-        if ($request->getParam('pimcore_editmode') && $request->getParam('module') == 'website') {
-            $body = $this->getResponse()->getBody();
-            $html = str_get_html($body);
-            $patcher = $this->getPatcher();
+        $resolveState = $this->getState();
 
-            foreach ($patcher as $path) {
-                $this->addJavascript($html,$path);
-            }
-
-            $body = $html->save();
-
-            $html->clear();
-            unset($html);
-
-            $this->getResponse()->setBody($body);
+        if ($resolveState !== Resolver::STATE_DOCUMENT) {
+            return;
         }
+
+        $this->run($resolveState);
+    }
+
+    public function postDispatch(){
+        if(!PimcoreTool::isHtmlResponse($this->getResponse())) {
+            return;
+        }
+
+        $resolveState = $this->getState();
+
+        if ($resolveState !== Resolver::STATE_ADMIN) {
+            return;
+        }
+
+        $this->run($resolveState);
     }
 }
 
