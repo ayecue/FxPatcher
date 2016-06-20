@@ -5,7 +5,7 @@ namespace FxPatcher\Util;
 use Pimcore\Model\Cache as PimcoreCache;
 
 class Installer {
-	public function getItems(){
+	public static function getItems(){
 		return array(
 			'\FxPatcher\Util\Installer\InstallItem\Config',
 			'\FxPatcher\Util\Installer\InstallItem\Directory'
